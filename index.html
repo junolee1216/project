@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daily Schedule Board</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h1>Daily Schedule Board</h1>
+        </div>
+        <div class="stats" aria-label="Schedule stats">
+          <div>
+            <span id="plannedCount">0</span>
+            <small>planned</small>
+          </div>
+          <div>
+            <span id="doneCount">0</span>
+            <small>done</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="composer" aria-label="Add plan">
+        <input id="taskInput" type="text" maxlength="90" placeholder="Add a plan or goal for today" autocomplete="off">
+        <select id="slotInput" aria-label="Schedule slot">
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="evening">Evening</option>
+        </select>
+        <button id="addTaskButton" type="button">Add</button>
+      </section>
+
+      <section class="board" aria-label="Daily schedule board">
+        <article class="lane" data-lane="morning">
+          <header>
+            <h2>Morning</h2>
+            <span class="lane-count" data-count-for="morning">0</span>
+          </header>
+          <div class="task-list" id="lane-morning" data-lane="morning"></div>
+        </article>
+
+        <article class="lane" data-lane="afternoon">
+          <header>
+            <h2>Afternoon</h2>
+            <span class="lane-count" data-count-for="afternoon">0</span>
+          </header>
+          <div class="task-list" id="lane-afternoon" data-lane="afternoon"></div>
+        </article>
+
+        <article class="lane" data-lane="evening">
+          <header>
+            <h2>Evening</h2>
+            <span class="lane-count" data-count-for="evening">0</span>
+          </header>
+          <div class="task-list" id="lane-evening" data-lane="evening"></div>
+        </article>
+      </section>
+    </main>
+
+    <template id="taskTemplate">
+      <article class="task" draggable="true">
+        <input class="complete-checkbox" type="checkbox" aria-label="Mark complete">
+        <p></p>
+        <select class="lane-select" aria-label="Move task">
+          <option value="morning">Morning</option>
+          <option value="afternoon">Afternoon</option>
+          <option value="evening">Evening</option>
+        </select>
+        <button class="delete-button" type="button" aria-label="Delete task">x</button>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
