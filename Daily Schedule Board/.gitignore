@@ -1,1 +1,4 @@
 *.png
+discord-config.json
+__pycache__/
+reminders.json

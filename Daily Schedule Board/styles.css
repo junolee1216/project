@@ -8,7 +8,6 @@
   --green: #357a5b;
   --blue: #3e6c97;
   --coral: #bb5e4f;
-  --gold: #a5792a;
   --shadow: 0 16px 40px rgba(35, 38, 36, 0.12);
 }
 
@@ -40,13 +39,14 @@ button {
 }
 
 .shell {
-  width: min(1180px, calc(100vw - 32px));
+  width: min(1380px, calc(100vw - 32px));
   margin: 0 auto;
   padding: 32px 0;
 }
 
 .topbar,
 .composer,
+.category-composer,
 .lane,
 .task {
   border: 1px solid var(--line);
@@ -69,7 +69,6 @@ button {
   color: var(--green);
   font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -82,7 +81,6 @@ p {
 h1 {
   font-size: clamp(2rem, 7vw, 4.8rem);
   line-height: 0.95;
-  letter-spacing: 0;
 }
 
 .stats {
@@ -107,26 +105,35 @@ h1 {
 }
 
 .stats small,
-.label,
 .lane-count {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.composer {
+.composer,
+.category-composer {
   display: grid;
-  grid-template-columns: 1fr 150px auto;
   gap: 10px;
-  margin: 18px 0;
   padding: 10px;
   border-radius: 8px;
 }
 
+.composer {
+  grid-template-columns: 1fr 170px auto;
+  margin: 18px 0;
+}
+
+.category-composer {
+  grid-template-columns: minmax(180px, 320px) auto;
+  justify-content: end;
+  margin: -8px 0 10px;
+}
+
 .composer input,
-.composer select {
+.composer select,
+.category-composer input {
   width: 100%;
   min-height: 48px;
   border: 1px solid transparent;
@@ -138,11 +145,13 @@ h1 {
 }
 
 .composer input:focus,
-.composer select:focus {
+.composer select:focus,
+.category-composer input:focus {
   border-color: var(--blue);
 }
 
-.composer button {
+.composer button,
+.category-composer button {
   min-height: 48px;
   border-radius: 6px;
   background: var(--ink);
@@ -151,9 +160,22 @@ h1 {
   padding: 0 18px;
 }
 
+.category-composer button {
+  background: var(--blue);
+}
+
+.category-message {
+  min-height: 22px;
+  margin: 0 2px 8px;
+  color: var(--coral);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: right;
+}
+
 .board {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 14px;
 }
 
@@ -169,13 +191,36 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   min-height: 58px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
 }
 
 .lane h2 {
+  min-width: 0;
   font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.lane-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remove-category-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f0dfda;
+  color: var(--coral);
+  font-weight: 900;
+}
+
+.remove-category-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .task-list {
@@ -189,7 +234,7 @@ h1 {
 
 .task {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 86px 34px;
+  grid-template-columns: 34px minmax(0, 1fr) 100px 74px 34px;
   align-items: center;
   gap: 10px;
   min-height: 66px;
@@ -199,8 +244,8 @@ h1 {
   box-shadow: 0 8px 18px rgba(35, 38, 36, 0.08);
 }
 
-.task.is-active {
-  border-color: var(--green);
+.task.has-reminder {
+  border-color: var(--blue);
 }
 
 .task.dragging {
@@ -228,13 +273,108 @@ h1 {
   height: 34px;
 }
 
+.reminder-toggle {
+  height: 34px;
+  border-radius: 6px;
+  background: #e4edf4;
+  color: var(--blue);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.reminder-toggle.is-active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.reminder-panel {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.reminder-group {
+  display: grid;
+  grid-template-columns: 54px minmax(120px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.reminder-group label,
+.minutes-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reminder-group input {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f2efe7;
+  color: var(--ink);
+  padding: 0 8px;
+}
+
+.reminder-group .timer-input {
+  width: 78px;
+}
+
+.reminder-group button {
+  height: 36px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.reminder-group .secondary-button {
+  background: #e7e1d4;
+  color: var(--ink);
+}
+
+.reminder-status {
+  min-height: 20px;
+  color: var(--blue);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.notification-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10;
+  max-width: min(380px, calc(100vw - 36px));
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: var(--shadow);
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.notification-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .complete-checkbox {
   accent-color: var(--green);
   cursor: pointer;
 }
 
 .lane-select {
-  width: 86px;
+  width: 100px;
   height: 34px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -273,7 +413,8 @@ h1 {
   }
 
   .topbar,
-  .composer {
+  .composer,
+  .category-composer {
     grid-template-columns: 1fr;
   }
 
@@ -286,6 +427,14 @@ h1 {
     min-width: 0;
   }
 
+  .category-composer {
+    justify-content: stretch;
+  }
+
+  .category-message {
+    text-align: left;
+  }
+
   .board {
     grid-template-columns: 1fr;
   }
@@ -295,16 +444,42 @@ h1 {
   }
 
   .task {
-    grid-template-columns: 34px minmax(0, 1fr) 76px 34px;
+    grid-template-columns: 34px minmax(0, 1fr) 76px 68px 34px;
   }
 
   .lane-select {
     width: 76px;
   }
+
+  .reminder-group {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reminder-group label {
+    grid-column: 1 / -1;
+  }
+
+  .reminder-group .timer-input {
+    width: 100%;
+  }
+
+  .minutes-label {
+    display: none;
+  }
 }
 
 @media (max-width: 520px) {
-  .composer {
-    grid-template-columns: 1fr;
+  .task {
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+  }
+
+  .lane-select,
+  .reminder-toggle {
+    grid-column: span 1;
+    width: 100%;
+  }
+
+  .lane-select {
+    grid-column: 1 / 3;
   }
 }
