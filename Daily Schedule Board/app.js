@@ -1,30 +1,41 @@
-const STORAGE_KEY = "daily-schedule-board:v1";
+const STORAGE_KEY = "daily-schedule-board:v2";
+const LEGACY_STORAGE_KEY = "daily-schedule-board:v1";
+const PRIORITY_ORDER = { important: 0, normal: 1, low: 2 };
 
 const defaultCategories = [
-  { id: "morning", name: "Morning", builtIn: true },
-  { id: "afternoon", name: "Afternoon", builtIn: true },
-  { id: "evening", name: "Evening", builtIn: true }
+  { id: "morning", name: "Morning", color: "#357a5b", builtIn: true },
+  { id: "afternoon", name: "Afternoon", color: "#3e6c97", builtIn: true },
+  { id: "evening", name: "Evening", color: "#bb5e4f", builtIn: true }
 ];
 
 const defaultState = {
+  selectedDate: getTodayISO(),
   categories: defaultCategories,
   tasks: [
-    { id: "task-1", title: "Drink water and get ready", categoryId: "morning", done: false, createdAt: Date.now() - 3 },
-    { id: "task-2", title: "Finish one important goal", categoryId: "afternoon", done: false, createdAt: Date.now() - 2 },
-    { id: "task-3", title: "Plan tomorrow before bed", categoryId: "evening", done: false, createdAt: Date.now() - 1 }
+    createDefaultTask("task-1", "Drink water and get ready", "morning", "normal", -3),
+    createDefaultTask("task-2", "Finish one important goal", "afternoon", "important", -2),
+    createDefaultTask("task-3", "Plan tomorrow before bed", "evening", "low", -1)
   ]
 };
 
 let state = loadState();
 
 const taskInput = document.querySelector("#taskInput");
+const dateInput = document.querySelector("#dateInput");
 const slotInput = document.querySelector("#slotInput");
+const priorityInput = document.querySelector("#priorityInput");
 const addTaskButton = document.querySelector("#addTaskButton");
 const categoryInput = document.querySelector("#categoryInput");
+const categoryColorInput = document.querySelector("#categoryColorInput");
 const addCategoryButton = document.querySelector("#addCategoryButton");
+const exportButton = document.querySelector("#exportButton");
+const importButton = document.querySelector("#importButton");
+const importFileInput = document.querySelector("#importFileInput");
+const clearCompletedButton = document.querySelector("#clearCompletedButton");
 const categoryMessage = document.querySelector("#categoryMessage");
 const plannedCount = document.querySelector("#plannedCount");
 const doneCount = document.querySelector("#doneCount");
+const emptyState = document.querySelector("#emptyState");
 const board = document.querySelector("#board");
 const notificationToast = document.querySelector("#notificationToast");
 const laneTemplate = document.querySelector("#laneTemplate");
@@ -33,6 +44,7 @@ let reminderInterval = null;
 let toastTimeout = null;
 const openReminderTaskIds = new Set();
 
+dateInput.value = state.selectedDate;
 render();
 startReminderClock();
 syncActiveReminders();
@@ -44,6 +56,13 @@ taskInput.addEventListener("keydown", (event) => {
   }
 });
 
+dateInput.addEventListener("change", () => {
+  state.selectedDate = dateInput.value || getTodayISO();
+  dateInput.value = state.selectedDate;
+  persist();
+  render();
+});
+
 addCategoryButton.addEventListener("click", addCategory);
 categoryInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -51,35 +70,64 @@ categoryInput.addEventListener("keydown", (event) => {
   }
 });
 
+exportButton.addEventListener("click", exportBoard);
+importButton.addEventListener("click", () => importFileInput.click());
+importFileInput.addEventListener("change", importBoard);
+clearCompletedButton.addEventListener("click", clearCompletedTasks);
+
+function createDefaultTask(id, title, categoryId, priority, offset) {
+  return {
+    id,
+    title,
+    categoryId,
+    priority,
+    date: getTodayISO(),
+    done: false,
+    createdAt: Date.now() + offset,
+    alarmAt: null,
+    alarmFired: false,
+    timerEndsAt: null,
+    timerFired: false
+  };
+}
+
 function loadState() {
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY));
     if (!stored || !Array.isArray(stored.tasks)) {
       return structuredClone(defaultState);
     }
 
-    const categories = normalizeCategories(stored.categories);
-    const validCategoryIds = new Set(categories.map((category) => category.id));
-
-    return {
-      categories,
-      tasks: stored.tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        categoryId: validCategoryIds.has(task.categoryId || task.lane)
-          ? task.categoryId || task.lane
-          : categories[0].id,
-        done: Boolean(task.done),
-        createdAt: task.createdAt || Date.now(),
-        alarmAt: task.alarmAt || null,
-        alarmFired: Boolean(task.alarmFired),
-        timerEndsAt: task.timerEndsAt || null,
-        timerFired: Boolean(task.timerFired)
-      }))
-    };
+    return normalizeState(stored);
   } catch {
     return structuredClone(defaultState);
   }
+}
+
+function normalizeState(rawState) {
+  const categories = normalizeCategories(rawState.categories);
+  const validCategoryIds = new Set(categories.map((category) => category.id));
+  const selectedDate = isValidDateString(rawState.selectedDate) ? rawState.selectedDate : getTodayISO();
+
+  return {
+    selectedDate,
+    categories,
+    tasks: rawState.tasks.map((task) => ({
+      id: String(task.id || `task-${crypto.randomUUID()}`),
+      title: String(task.title || "Untitled plan").trim() || "Untitled plan",
+      categoryId: validCategoryIds.has(task.categoryId || task.lane)
+        ? task.categoryId || task.lane
+        : categories[0].id,
+      priority: ["important", "normal", "low"].includes(task.priority) ? task.priority : "normal",
+      date: isValidDateString(task.date) ? task.date : selectedDate,
+      done: Boolean(task.done),
+      createdAt: Number(task.createdAt) || Date.now(),
+      alarmAt: task.alarmAt || null,
+      alarmFired: Boolean(task.alarmFired),
+      timerEndsAt: task.timerEndsAt || null,
+      timerFired: Boolean(task.timerFired)
+    }))
+  };
 }
 
 function normalizeCategories(categories) {
@@ -89,9 +137,10 @@ function normalizeCategories(categories) {
 
   const normalized = categories
     .filter((category) => category && category.id && category.name)
-    .map((category) => ({
+    .map((category, index) => ({
       id: String(category.id),
       name: String(category.name),
+      color: isValidColor(category.color) ? category.color : defaultCategories[index % defaultCategories.length].color,
       builtIn: Boolean(category.builtIn)
     }));
 
@@ -113,6 +162,8 @@ function addTask() {
     id: `task-${crypto.randomUUID()}`,
     title,
     categoryId: slotInput.value,
+    priority: priorityInput.value,
+    date: state.selectedDate,
     done: false,
     createdAt: Date.now(),
     alarmAt: null,
@@ -145,6 +196,7 @@ function addCategory() {
   const category = {
     id: `category-${crypto.randomUUID()}`,
     name,
+    color: categoryColorInput.value,
     builtIn: false
   };
 
@@ -170,7 +222,7 @@ function removeCategory(categoryId) {
 }
 
 function moveTask(taskId, categoryId) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   const categoryExists = state.categories.some((category) => category.id === categoryId);
   if (!task || !categoryExists) {
     return;
@@ -181,8 +233,48 @@ function moveTask(taskId, categoryId) {
   render();
 }
 
+function moveTaskDate(taskId, date) {
+  const task = findTask(taskId);
+  if (!task || !isValidDateString(date)) {
+    return;
+  }
+
+  task.date = date;
+  persist();
+  render();
+}
+
+function updateTaskPriority(taskId, priority) {
+  const task = findTask(taskId);
+  if (!task || !["important", "normal", "low"].includes(priority)) {
+    return;
+  }
+
+  task.priority = priority;
+  persist();
+  render();
+}
+
+function renameTask(taskId, title) {
+  const task = findTask(taskId);
+  const nextTitle = title.trim();
+  if (!task) {
+    return;
+  }
+
+  if (!nextTitle) {
+    render();
+    showNotification("Task name cannot be empty.");
+    return;
+  }
+
+  task.title = nextTitle;
+  persist();
+  render();
+}
+
 function toggleDone(taskId, done) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   if (!task) {
     return;
   }
@@ -193,7 +285,7 @@ function toggleDone(taskId, done) {
 }
 
 async function deleteTask(taskId) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   if (!task) {
     return;
   }
@@ -220,8 +312,34 @@ async function deleteTask(taskId) {
   render();
 }
 
+async function clearCompletedTasks() {
+  const completedTasks = getVisibleTasks().filter((task) => task.done);
+  if (completedTasks.length === 0) {
+    showNotification("No completed tasks to clear.");
+    return;
+  }
+
+  const hasReminders = completedTasks.some(hasActiveReminder);
+  if (hasReminders && !window.confirm("Some completed tasks have reminders. Clear them and cancel reminders?")) {
+    return;
+  }
+
+  try {
+    await Promise.all(completedTasks.map((task) => cancelAllServerReminders(task)));
+  } catch {
+    showNotification("Could not cancel every reminder. Nothing was cleared.");
+    return;
+  }
+
+  const completedIds = new Set(completedTasks.map((task) => task.id));
+  completedIds.forEach((id) => openReminderTaskIds.delete(id));
+  state.tasks = state.tasks.filter((task) => !completedIds.has(task.id));
+  persist();
+  render();
+}
+
 async function setAlarm(taskId, value) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   const alarmTime = new Date(value).getTime();
 
   if (!task || !value || Number.isNaN(alarmTime) || alarmTime <= Date.now()) {
@@ -245,7 +363,7 @@ async function setAlarm(taskId, value) {
 }
 
 async function clearAlarm(taskId) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   if (!task) {
     return;
   }
@@ -264,7 +382,7 @@ async function clearAlarm(taskId) {
 }
 
 async function startTimer(taskId, minutes) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   const duration = Number(minutes);
 
   if (!task || !Number.isFinite(duration) || duration < 1 || duration > 1440) {
@@ -289,7 +407,7 @@ async function startTimer(taskId, minutes) {
 }
 
 async function clearTimer(taskId) {
-  const task = state.tasks.find((item) => item.id === taskId);
+  const task = findTask(taskId);
   if (!task) {
     return;
   }
@@ -308,15 +426,19 @@ async function clearTimer(taskId) {
 }
 
 function render() {
+  dateInput.value = state.selectedDate;
   renderCategoryOptions();
   board.replaceChildren();
+
+  const visibleTasks = getVisibleTasks();
+  emptyState.hidden = visibleTasks.length > 0;
 
   state.categories.forEach((category) => {
     board.append(createLaneElement(category));
   });
 
-  plannedCount.textContent = state.tasks.length;
-  doneCount.textContent = state.tasks.filter((task) => task.done).length;
+  plannedCount.textContent = visibleTasks.length;
+  doneCount.textContent = visibleTasks.filter((task) => task.done).length;
   persist();
 }
 
@@ -337,11 +459,12 @@ function createLaneElement(category) {
   const element = laneTemplate.content.firstElementChild.cloneNode(true);
   const list = element.querySelector(".task-list");
   const removeButton = element.querySelector(".remove-category-button");
-  const categoryTasks = state.tasks
+  const categoryTasks = getVisibleTasks()
     .filter((task) => task.categoryId === category.id)
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort(sortTasks);
 
   element.dataset.categoryId = category.id;
+  element.style.setProperty("--category-color", category.color);
   element.querySelector("h2").textContent = category.name;
   element.querySelector(".lane-count").textContent = categoryTasks.length;
   list.dataset.categoryId = category.id;
@@ -353,13 +476,13 @@ function createLaneElement(category) {
   if (categoryTasks.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Open";
+    empty.textContent = "No plans here";
     list.append(empty);
   }
 
   removeButton.hidden = category.builtIn;
-  removeButton.disabled = categoryTasks.length > 0;
-  removeButton.title = categoryTasks.length > 0 ? "Remove its plans first" : `Delete ${category.name}`;
+  removeButton.disabled = state.tasks.some((task) => task.categoryId === category.id);
+  removeButton.title = removeButton.disabled ? "Remove its plans first" : `Delete ${category.name}`;
   removeButton.addEventListener("click", () => removeCategory(category.id));
 
   list.addEventListener("dragover", (event) => {
@@ -374,6 +497,10 @@ function createLaneElement(category) {
   list.addEventListener("drop", (event) => {
     event.preventDefault();
     const taskId = event.dataTransfer.getData("text/plain");
+    const task = findTask(taskId);
+    if (task) {
+      task.date = state.selectedDate;
+    }
     moveTask(taskId, category.id);
     list.classList.remove("is-over");
   });
@@ -384,23 +511,30 @@ function createLaneElement(category) {
 function createTaskElement(task) {
   const element = taskTemplate.content.firstElementChild.cloneNode(true);
   const checkbox = element.querySelector(".complete-checkbox");
+  const title = element.querySelector(".task-title");
   const categorySelect = element.querySelector(".lane-select");
+  const prioritySelect = element.querySelector(".priority-select");
+  const taskDateInput = element.querySelector(".task-date-input");
   const reminderToggle = element.querySelector(".reminder-toggle");
   const reminderPanel = element.querySelector(".reminder-panel");
   const alarmInput = element.querySelector(".alarm-input");
   const timerInput = element.querySelector(".timer-input");
 
   element.dataset.taskId = task.id;
+  element.dataset.priority = task.priority;
   element.classList.toggle("is-complete", task.done);
   element.classList.toggle("has-reminder", hasActiveReminder(task));
-  element.querySelector("p").textContent = task.title;
+  title.textContent = task.title;
   checkbox.checked = task.done;
+  prioritySelect.value = task.priority;
+  taskDateInput.value = task.date;
 
   state.categories.forEach((category) => {
     categorySelect.append(createOption(category));
   });
   categorySelect.value = task.categoryId;
   alarmInput.value = task.alarmAt ? toLocalDateTimeValue(task.alarmAt) : "";
+
   const reminderIsOpen = openReminderTaskIds.has(task.id);
   reminderToggle.setAttribute("aria-expanded", String(reminderIsOpen));
   reminderPanel.hidden = !reminderIsOpen;
@@ -411,6 +545,10 @@ function createTaskElement(task) {
   }
 
   element.addEventListener("dragstart", (event) => {
+    if (document.activeElement === title) {
+      event.preventDefault();
+      return;
+    }
     element.classList.add("dragging");
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", task.id);
@@ -420,8 +558,17 @@ function createTaskElement(task) {
     element.classList.remove("dragging");
   });
 
+  title.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      title.blur();
+    }
+  });
+  title.addEventListener("blur", () => renameTask(task.id, title.textContent));
   checkbox.addEventListener("change", (event) => toggleDone(task.id, event.target.checked));
   categorySelect.addEventListener("change", (event) => moveTask(task.id, event.target.value));
+  prioritySelect.addEventListener("change", (event) => updateTaskPriority(task.id, event.target.value));
+  taskDateInput.addEventListener("change", (event) => moveTaskDate(task.id, event.target.value));
   reminderToggle.addEventListener("click", () => {
     const isOpen = reminderToggle.getAttribute("aria-expanded") === "true";
     if (isOpen) {
@@ -439,6 +586,52 @@ function createTaskElement(task) {
   element.querySelector(".delete-button").addEventListener("click", () => deleteTask(task.id));
 
   return element;
+}
+
+function getVisibleTasks() {
+  return state.tasks.filter((task) => task.date === state.selectedDate);
+}
+
+function sortTasks(a, b) {
+  return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.createdAt - b.createdAt;
+}
+
+function findTask(taskId) {
+  return state.tasks.find((task) => task.id === taskId);
+}
+
+function exportBoard() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `daily-schedule-board-${getTodayISO()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function importBoard(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      state = normalizeState(imported);
+      dateInput.value = state.selectedDate;
+      persist();
+      render();
+      showNotification("Board imported.");
+    } catch {
+      showNotification("Could not import that file.");
+    } finally {
+      importFileInput.value = "";
+    }
+  });
+  reader.readAsText(file);
 }
 
 function startReminderClock() {
@@ -472,7 +665,7 @@ function checkReminders() {
   }
 
   document.querySelectorAll(".task").forEach((element) => {
-    const task = state.tasks.find((item) => item.id === element.dataset.taskId);
+    const task = findTask(element.dataset.taskId);
     if (task) {
       updateReminderStatus(element, task);
     }
@@ -653,4 +846,16 @@ function showCategoryMessage(message) {
       categoryMessage.textContent = "";
     }
   }, 2500);
+}
+
+function getTodayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isValidDateString(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isValidColor(value) {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 }

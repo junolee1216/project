@@ -10,7 +10,7 @@
     <main class="shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Today</p>
+          <p class="eyebrow">Plan your day</p>
           <h1>Daily Schedule Board</h1>
         </div>
         <div class="stats" aria-label="Schedule stats">
@@ -26,17 +26,36 @@
       </header>
 
       <section class="composer" aria-label="Add plan">
-        <input id="taskInput" type="text" maxlength="90" placeholder="Add a plan or goal for today" autocomplete="off">
+        <input id="taskInput" type="text" maxlength="90" placeholder="Add a plan or goal" autocomplete="off">
+        <input id="dateInput" type="date" aria-label="Schedule date">
         <select id="slotInput" aria-label="Schedule category"></select>
+        <select id="priorityInput" aria-label="Priority">
+          <option value="normal">Normal</option>
+          <option value="important">Important</option>
+          <option value="low">Low</option>
+        </select>
         <button id="addTaskButton" type="button">Add</button>
       </section>
 
       <section class="category-composer" aria-label="Add category">
         <input id="categoryInput" type="text" maxlength="30" placeholder="New category name" autocomplete="off">
+        <input id="categoryColorInput" type="color" value="#3e6c97" aria-label="Category color">
         <button id="addCategoryButton" type="button">Add category</button>
       </section>
 
+      <section class="board-actions" aria-label="Board tools">
+        <button id="exportButton" type="button">Export</button>
+        <button id="importButton" type="button">Import</button>
+        <button id="clearCompletedButton" type="button">Clear completed</button>
+        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+      </section>
+
       <p id="categoryMessage" class="category-message" role="status" aria-live="polite"></p>
+
+      <section id="emptyState" class="empty-state" hidden>
+        <strong>No plans for this date yet.</strong>
+        <span>Add one above, or switch to another date.</span>
+      </section>
 
       <section class="board" id="board" aria-label="Daily schedule board"></section>
     </main>
@@ -46,7 +65,10 @@
     <template id="laneTemplate">
       <article class="lane">
         <header>
-          <h2></h2>
+          <div class="lane-title">
+            <span class="category-swatch"></span>
+            <h2></h2>
+          </div>
           <div class="lane-actions">
             <span class="lane-count">0</span>
             <button class="remove-category-button" type="button" aria-label="Delete category">x</button>
@@ -59,8 +81,14 @@
     <template id="taskTemplate">
       <article class="task" draggable="true">
         <input class="complete-checkbox" type="checkbox" aria-label="Mark complete">
-        <p></p>
+        <p class="task-title" contenteditable="true" spellcheck="false" aria-label="Edit task title"></p>
+        <select class="priority-select" aria-label="Task priority">
+          <option value="normal">Normal</option>
+          <option value="important">Important</option>
+          <option value="low">Low</option>
+        </select>
         <select class="lane-select" aria-label="Move task"></select>
+        <input class="task-date-input" type="date" aria-label="Move date">
         <button class="reminder-toggle" type="button" aria-expanded="false">Remind</button>
         <button class="delete-button" type="button" aria-label="Delete task">x</button>
         <div class="reminder-panel" hidden>

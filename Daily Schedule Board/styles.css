@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   min-height: 100vh;
   margin: 0;
@@ -47,8 +51,10 @@ button {
 .topbar,
 .composer,
 .category-composer,
+.board-actions,
 .lane,
-.task {
+.task,
+.empty-state {
   border: 1px solid var(--line);
   background: rgba(255, 253, 250, 0.92);
 }
@@ -113,7 +119,8 @@ h1 {
 }
 
 .composer,
-.category-composer {
+.category-composer,
+.board-actions {
   display: grid;
   gap: 10px;
   padding: 10px;
@@ -121,38 +128,51 @@ h1 {
 }
 
 .composer {
-  grid-template-columns: 1fr 170px auto;
-  margin: 18px 0;
+  grid-template-columns: minmax(220px, 1fr) 150px 170px 140px auto;
+  margin: 18px 0 10px;
 }
 
 .category-composer {
-  grid-template-columns: minmax(180px, 320px) auto;
+  grid-template-columns: minmax(180px, 320px) 58px auto;
   justify-content: end;
-  margin: -8px 0 10px;
+  margin: 0 0 10px;
+}
+
+.board-actions {
+  grid-template-columns: repeat(3, auto);
+  justify-content: end;
+  margin-bottom: 8px;
 }
 
 .composer input,
 .composer select,
-.category-composer input {
+.category-composer input,
+.task input,
+.task select {
   width: 100%;
-  min-height: 48px;
+  min-height: 42px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: #f2efe7;
   color: var(--ink);
-  padding: 0 14px;
+  padding: 0 12px;
   outline: none;
 }
 
 .composer input:focus,
 .composer select:focus,
-.category-composer input:focus {
+.category-composer input:focus,
+.task input:focus,
+.task select:focus,
+.task-title:focus {
   border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(62, 108, 151, 0.16);
 }
 
 .composer button,
-.category-composer button {
-  min-height: 48px;
+.category-composer button,
+.board-actions button {
+  min-height: 42px;
   border-radius: 6px;
   background: var(--ink);
   color: #fffdfa;
@@ -160,8 +180,14 @@ h1 {
   padding: 0 18px;
 }
 
-.category-composer button {
+.category-composer button,
+.board-actions button:nth-child(2) {
   background: var(--blue);
+}
+
+.board-actions button:last-child {
+  background: #e7e1d4;
+  color: var(--ink);
 }
 
 .category-message {
@@ -171,6 +197,19 @@ h1 {
   font-size: 0.85rem;
   font-weight: 700;
   text-align: right;
+}
+
+.empty-state {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.empty-state strong {
+  color: var(--ink);
 }
 
 .board {
@@ -195,6 +234,21 @@ h1 {
   min-height: 58px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
+}
+
+.lane-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.category-swatch {
+  width: 12px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--category-color, var(--blue));
 }
 
 .lane h2 {
@@ -234,7 +288,7 @@ h1 {
 
 .task {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 100px 74px 34px;
+  grid-template-columns: 34px minmax(160px, 1fr) 106px 106px 138px 74px 34px;
   align-items: center;
   gap: 10px;
   min-height: 66px;
@@ -256,21 +310,47 @@ h1 {
   background: #edf3ec;
 }
 
-.task.is-complete p {
+.task.is-complete .task-title {
   color: var(--muted);
   text-decoration: line-through;
 }
 
-.task p {
+.task[data-priority="important"] {
+  box-shadow: inset 4px 0 0 var(--coral), 0 8px 18px rgba(35, 38, 36, 0.08);
+}
+
+.task[data-priority="low"] {
+  box-shadow: inset 4px 0 0 var(--line), 0 8px 18px rgba(35, 38, 36, 0.08);
+}
+
+.task-title {
   min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px;
   overflow-wrap: anywhere;
-  font-weight: 700;
+  font-weight: 800;
+  outline: none;
 }
 
 .complete-checkbox,
 .delete-button {
   width: 34px;
   height: 34px;
+}
+
+.complete-checkbox {
+  accent-color: var(--green);
+  cursor: pointer;
+}
+
+.priority-select,
+.lane-select,
+.task-date-input {
+  height: 34px;
+  min-height: 34px;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .reminder-toggle {
@@ -345,6 +425,23 @@ h1 {
   font-weight: 700;
 }
 
+.delete-button {
+  border-radius: 50%;
+  background: #f0dfda;
+  color: var(--coral);
+  font-weight: 900;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .notification-toast {
   position: fixed;
   right: 18px;
@@ -368,42 +465,20 @@ h1 {
   transform: translateY(0);
 }
 
-.complete-checkbox {
-  accent-color: var(--green);
-  cursor: pointer;
-}
+@media (max-width: 1180px) {
+  .task {
+    grid-template-columns: 34px minmax(180px, 1fr) 106px 106px 34px;
+  }
 
-.lane-select {
-  width: 100px;
-  height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #f2efe7;
-  color: var(--ink);
-  font-size: 0.82rem;
-  font-weight: 800;
-  outline: none;
-}
+  .task-date-input,
+  .reminder-toggle {
+    grid-column: span 1;
+  }
 
-.lane-select:focus {
-  border-color: var(--blue);
-}
-
-.delete-button {
-  border-radius: 50%;
-  background: #f0dfda;
-  color: var(--coral);
-  font-weight: 900;
-}
-
-.empty {
-  display: grid;
-  place-items: center;
-  min-height: 96px;
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  font-weight: 800;
+  .delete-button {
+    grid-column: 5;
+    grid-row: 1;
+  }
 }
 
 @media (max-width: 820px) {
@@ -414,7 +489,8 @@ h1 {
 
   .topbar,
   .composer,
-  .category-composer {
+  .category-composer,
+  .board-actions {
     grid-template-columns: 1fr;
   }
 
@@ -427,7 +503,8 @@ h1 {
     min-width: 0;
   }
 
-  .category-composer {
+  .category-composer,
+  .board-actions {
     justify-content: stretch;
   }
 
@@ -444,11 +521,24 @@ h1 {
   }
 
   .task {
-    grid-template-columns: 34px minmax(0, 1fr) 76px 68px 34px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
   }
 
-  .lane-select {
-    width: 76px;
+  .task-title {
+    grid-column: 2;
+  }
+
+  .priority-select,
+  .lane-select,
+  .task-date-input,
+  .reminder-toggle {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .delete-button {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .reminder-group {
@@ -465,21 +555,5 @@ h1 {
 
   .minutes-label {
     display: none;
-  }
-}
-
-@media (max-width: 520px) {
-  .task {
-    grid-template-columns: 34px minmax(0, 1fr) 34px;
-  }
-
-  .lane-select,
-  .reminder-toggle {
-    grid-column: span 1;
-    width: 100%;
-  }
-
-  .lane-select {
-    grid-column: 1 / 3;
   }
 }

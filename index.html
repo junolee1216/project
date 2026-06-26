@@ -2,11 +2,114 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="refresh" content="0; url=Daily%20Schedule%20Board/">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Daily Schedule Board</title>
+    <link rel="stylesheet" href="Daily%20Schedule%20Board/styles.css">
   </head>
   <body>
-    <a href="Daily%20Schedule%20Board/">Open Daily Schedule Board</a>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Plan your day</p>
+          <h1>Daily Schedule Board</h1>
+        </div>
+        <div class="stats" aria-label="Schedule stats">
+          <div>
+            <span id="plannedCount">0</span>
+            <small>planned</small>
+          </div>
+          <div>
+            <span id="doneCount">0</span>
+            <small>done</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="composer" aria-label="Add plan">
+        <input id="taskInput" type="text" maxlength="90" placeholder="Add a plan or goal" autocomplete="off">
+        <input id="dateInput" type="date" aria-label="Schedule date">
+        <select id="slotInput" aria-label="Schedule category"></select>
+        <select id="priorityInput" aria-label="Priority">
+          <option value="normal">Normal</option>
+          <option value="important">Important</option>
+          <option value="low">Low</option>
+        </select>
+        <button id="addTaskButton" type="button">Add</button>
+      </section>
+
+      <section class="category-composer" aria-label="Add category">
+        <input id="categoryInput" type="text" maxlength="30" placeholder="New category name" autocomplete="off">
+        <input id="categoryColorInput" type="color" value="#3e6c97" aria-label="Category color">
+        <button id="addCategoryButton" type="button">Add category</button>
+      </section>
+
+      <section class="board-actions" aria-label="Board tools">
+        <button id="exportButton" type="button">Export</button>
+        <button id="importButton" type="button">Import</button>
+        <button id="clearCompletedButton" type="button">Clear completed</button>
+        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+      </section>
+
+      <p id="categoryMessage" class="category-message" role="status" aria-live="polite"></p>
+
+      <section id="emptyState" class="empty-state" hidden>
+        <strong>No plans for this date yet.</strong>
+        <span>Add one above, or switch to another date.</span>
+      </section>
+
+      <section class="board" id="board" aria-label="Daily schedule board"></section>
+    </main>
+
+    <div id="notificationToast" class="notification-toast" role="alert" aria-live="assertive"></div>
+
+    <template id="laneTemplate">
+      <article class="lane">
+        <header>
+          <div class="lane-title">
+            <span class="category-swatch"></span>
+            <h2></h2>
+          </div>
+          <div class="lane-actions">
+            <span class="lane-count">0</span>
+            <button class="remove-category-button" type="button" aria-label="Delete category">x</button>
+          </div>
+        </header>
+        <div class="task-list"></div>
+      </article>
+    </template>
+
+    <template id="taskTemplate">
+      <article class="task" draggable="true">
+        <input class="complete-checkbox" type="checkbox" aria-label="Mark complete">
+        <p class="task-title" contenteditable="true" spellcheck="false" aria-label="Edit task title"></p>
+        <select class="priority-select" aria-label="Task priority">
+          <option value="normal">Normal</option>
+          <option value="important">Important</option>
+          <option value="low">Low</option>
+        </select>
+        <select class="lane-select" aria-label="Move task"></select>
+        <input class="task-date-input" type="date" aria-label="Move date">
+        <button class="reminder-toggle" type="button" aria-expanded="false">Remind</button>
+        <button class="delete-button" type="button" aria-label="Delete task">x</button>
+        <div class="reminder-panel" hidden>
+          <div class="reminder-group">
+            <label>Alarm</label>
+            <input class="alarm-input" type="datetime-local">
+            <button class="set-alarm-button" type="button">Set</button>
+            <button class="cancel-alarm-button secondary-button" type="button">Clear</button>
+          </div>
+          <div class="reminder-group">
+            <label>Timer</label>
+            <input class="timer-input" type="number" min="1" max="1440" value="10" aria-label="Timer minutes">
+            <span class="minutes-label">min</span>
+            <button class="start-timer-button" type="button">Start</button>
+            <button class="cancel-timer-button secondary-button" type="button">Clear</button>
+          </div>
+          <p class="reminder-status" aria-live="polite"></p>
+        </div>
+      </article>
+    </template>
+
+    <script src="Daily%20Schedule%20Board/app.js"></script>
   </body>
 </html>
