@@ -74,7 +74,12 @@ def send_discord_message(task_title, reminder_type):
     separator = "&" if "?" in webhook_url else "?"
     request_url = f"{webhook_url}{separator}wait=true"
     discord_body = json.dumps(
-        {"content": f"⏰ {reminder_type}: {task_title}"},
+        {
+            "content": f"@everyone ⏰ {reminder_type}: {task_title}",
+            "allowed_mentions": {
+                "parse": ["everyone"]
+            },
+        },
         ensure_ascii=False,
     ).encode("utf-8")
     request = urllib.request.Request(
