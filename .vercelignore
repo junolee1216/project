@@ -1,0 +1,5 @@
+.git
+*.png
+Daily Schedule Board/discord-config.json
+Daily Schedule Board/reminders.json
+Daily Schedule Board/__pycache__/
